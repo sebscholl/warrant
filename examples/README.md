@@ -59,6 +59,8 @@ The agent's ordinary retry behavior *is* the resume — no request IDs, no state
 | [`python_tool.py`](python_tool.py) | Python | Function-calling style with the tool schema the model sees |
 | [`typescript_tool.ts`](typescript_tool.ts) | TypeScript | Same, with a typed tool definition |
 | [`ruby_tool.rb`](ruby_tool.rb) | Ruby | Block-style guard, matching the spec's primary example |
+| [`rust_tool.rs`](rust_tool.rs) | Rust | Closure-based guard; client passed in explicitly |
+| [`csharp_tool.cs`](csharp_tool.cs) | C# | Semantic-Kernel-style attributes that *are* the tool schema |
 | [`cli_tool.sh`](cli_tool.sh) | Shell / CLI | Wrap any command as a guarded tool; "resume" is just re-running it |
 
 Each restates the two points above in its own comments: **a tool is a function the agent calls with params**, and **the guard lives inside it so it always runs.**
