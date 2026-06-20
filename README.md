@@ -137,6 +137,8 @@ warrant guard cmte_finance_approvals \
 # Rejected → exit 1:   "Committee rejected this. Do not retry."
 ```
 
+Full, heavily-commented versions of these tools — Python, TypeScript, Ruby, and CLI — are in [`examples/`](examples/), with notes on how an agent invokes a tool and why the guard goes *inside* it.
+
 ---
 
 ## The full specification
