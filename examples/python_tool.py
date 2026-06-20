@@ -48,6 +48,11 @@ from warrant import Client, Approved, Pending, Denied  # illustrative SDK
 
 warrant = Client(api_key=os.environ["WARRANT_API_KEY"])
 
+# The three replies the model can get back — short instructions it will act on.
+APPROVED = "Done — the transfer completed."
+PENDING = "Awaiting committee approval. Call this tool again with the same arguments shortly."
+DENIED = "The committee rejected this transfer. Do not retry."
+
 
 # This schema is the ENTIRE surface the model can act on: a name, a description, and the
 # argument shape. Notice what is NOT here — there is no "skip approval" flag, and no
@@ -94,20 +99,12 @@ def transfer_funds(amount: int, to: str) -> str:
         on_grant=execute,                    # runs only after approval
     )
 
-    # The return value goes back to the model as the tool result — plain text it acts on.
+    # The return value goes back to the model as the tool result. Calling this tool again
+    # with the SAME arguments on Pending IS the resume: same args -> same fingerprint.
     match result:
-        case Approved():
-            return f"Done — transferred ${amount} to {to}."
-        case Pending():
-            # Not decided yet. The model's natural next step — call this tool again with
-            # the SAME arguments — IS the resume: same args -> same fingerprint -> same
-            # request. So we just tell it to retry.
-            return (
-                "Awaiting committee approval. The approvers have been notified. "
-                "Call this tool again with the same arguments in a few minutes."
-            )
-        case Denied():
-            return "The committee rejected this transfer. Do not retry."
+        case Approved(): return APPROVED
+        case Pending():  return PENDING
+        case Denied():   return DENIED
 
 
 # ---------------------------------------------------------------------------

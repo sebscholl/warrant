@@ -54,6 +54,11 @@ public class TreasuryTools
     private readonly WarrantClient _warrant =
         new(Environment.GetEnvironmentVariable("WARRANT_API_KEY"));
 
+    // The three replies the model can get back — short instructions it will act on.
+    private const string APPROVED = "Done — the transfer completed.";
+    private const string PENDING = "Awaiting committee approval. Call this tool again with the same arguments shortly.";
+    private const string DENIED = "The committee rejected this transfer. Do not retry.";
+
     // The attributes below are the ENTIRE surface the model can act on: a name, a
     // description, and the typed parameters. Notice what is NOT here — no "skip approval"
     // parameter, and no mention of Warrant. The gate is invisible to the model.
@@ -83,16 +88,13 @@ public class TreasuryTools
                 // single real transfer; thread it into whatever performs the side effect.
                 Payments.Transfer(amount, to, grant.IdempotencyKey));
 
-        // The return value goes back to the model as the tool result — plain text it acts on.
+        // The return value goes back to the model as the tool result. Calling this tool
+        // again with the SAME arguments on Pending IS the resume: same args -> same fingerprint.
         return result.Status switch
         {
-            GuardStatus.Approved => $"Done — transferred ${amount} to {to}.",
-            // Not decided yet. The model's natural next step — call this tool again with the
-            // SAME arguments — IS the resume: same args -> same fingerprint -> same request.
-            GuardStatus.Pending =>
-                "Awaiting committee approval. The approvers have been notified. " +
-                "Call this tool again with the same arguments in a few minutes.",
-            GuardStatus.Denied => "The committee rejected this transfer. Do not retry.",
+            GuardStatus.Approved => APPROVED,
+            GuardStatus.Pending => PENDING,
+            GuardStatus.Denied => DENIED,
             _ => throw new InvalidOperationException($"unexpected status: {result.Status}")
         };
     }

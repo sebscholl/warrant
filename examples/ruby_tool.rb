@@ -43,6 +43,11 @@
 
 warrant = Warrant::Client.new(api_key: ENV["WARRANT_API_KEY"])
 
+# The three replies the model can get back — short instructions it will act on.
+APPROVED = "Done — the transfer completed."
+PENDING  = "Awaiting committee approval. Call this tool again with the same arguments shortly."
+DENIED   = "The committee rejected this transfer. Do not retry."
+
 # This schema is the ENTIRE surface the model can act on: a name, a description, and the
 # argument shape. Notice what is NOT here — no "skip approval" flag, and no mention of
 # Warrant. The gate is an implementation detail the model is unaware of.
@@ -74,17 +79,12 @@ def transfer_funds(amount:, to:)
     Payments.transfer!(amount:, to:, idempotency_key: grant.idempotency_key)
   end
 
-  # The return value goes back to the model as the tool result — plain text it acts on.
+  # The return value goes back to the model as the tool result. Calling this tool again
+  # with the SAME arguments on Pending IS the resume: same args -> same fingerprint.
   case result
-  when Warrant::Approved
-    "Done — transferred $#{amount} to #{to}."
-  when Warrant::Pending
-    # Not decided yet. The model's natural next step — call this tool again with the SAME
-    # arguments — IS the resume: same args -> same fingerprint -> same request.
-    "Awaiting committee approval. The approvers have been notified. " \
-      "Call this tool again with the same arguments in a few minutes."
-  when Warrant::Denied
-    "The committee rejected this transfer. Do not retry."
+  when Warrant::Approved then APPROVED
+  when Warrant::Pending  then PENDING
+  when Warrant::Denied   then DENIED
   end
 end
 

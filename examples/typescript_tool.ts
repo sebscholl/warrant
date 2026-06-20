@@ -45,6 +45,11 @@ import { Warrant } from "warrant"; // illustrative SDK
 
 const warrant = new Warrant({ apiKey: process.env.WARRANT_API_KEY! });
 
+// The three replies the model can get back — short instructions it will act on.
+const APPROVED = "Done — the transfer completed.";
+const PENDING = "Awaiting committee approval. Call this tool again with the same arguments shortly.";
+const DENIED = "The committee rejected this transfer. Do not retry.";
+
 // This definition is the ENTIRE surface the model can act on: a name, a description, and
 // the argument shape. Notice what is NOT here — no "skip approval" flag, and no mention of
 // Warrant. The gate is an implementation detail the model is unaware of.
@@ -81,17 +86,12 @@ export async function transferFunds({ amount, to }: { amount: number; to: string
       payments.transfer({ amount, to, idempotencyKey: grant.idempotencyKey }),
   );
 
-  // The return value goes back to the model as the tool result — plain text it acts on.
+  // The return value goes back to the model as the tool result. Calling this tool again
+  // with the SAME arguments on "pending" IS the resume: same args -> same fingerprint.
   switch (result.status) {
-    case "approved":
-      return `Done — transferred $${amount} to ${to}.`;
-    case "pending":
-      // Not decided yet. The model's natural next step — call this tool again with the
-      // SAME arguments — IS the resume: same args -> same fingerprint -> same request.
-      return "Awaiting committee approval. The approvers have been notified. " +
-        "Call this tool again with the same arguments in a few minutes.";
-    case "denied":
-      return "The committee rejected this transfer. Do not retry.";
+    case "approved": return APPROVED;
+    case "pending":  return PENDING;
+    case "denied":   return DENIED;
   }
 }
 

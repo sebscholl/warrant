@@ -42,6 +42,11 @@
 use serde_json::{json, Value};
 use warrant::{Client, GuardResult}; // illustrative SDK
 
+// The three replies the model can get back — short instructions it will act on.
+const APPROVED: &str = "Done — the transfer completed.";
+const PENDING: &str = "Awaiting committee approval. Call this tool again with the same arguments shortly.";
+const DENIED: &str = "The committee rejected this transfer. Do not retry.";
+
 // This schema is the ENTIRE surface the model can act on: a name, a description, and the
 // argument shape. Notice what is NOT here — no "skip approval" flag, and no mention of
 // Warrant. The gate is an implementation detail the model is unaware of.
@@ -84,15 +89,12 @@ fn transfer_funds(warrant: &Client, amount: u64, to: &str) -> String {
         },
     );
 
-    // The return value goes back to the model as the tool result — plain text it acts on.
+    // The return value goes back to the model as the tool result. Calling this tool again
+    // with the SAME arguments on Pending IS the resume: same args -> same fingerprint.
     match result {
-        GuardResult::Approved => format!("Done — transferred ${amount} to {to}."),
-        // Not decided yet. The model's natural next step — call this tool again with the
-        // SAME arguments — IS the resume: same args -> same fingerprint -> same request.
-        GuardResult::Pending => "Awaiting committee approval. The approvers have been \
-             notified. Call this tool again with the same arguments in a few minutes."
-            .to_string(),
-        GuardResult::Denied => "The committee rejected this transfer. Do not retry.".to_string(),
+        GuardResult::Approved => APPROVED.to_string(),
+        GuardResult::Pending => PENDING.to_string(),
+        GuardResult::Denied => DENIED.to_string(),
     }
 }
 
