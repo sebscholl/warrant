@@ -190,7 +190,7 @@ signing_payload = SHA256(
     "request":             "areq_8f3a",
     "vote":                "approve",          // or "reject"
     "signed_at":           "2026-06-16T18:05:00Z",
-    "fingerprint":         "sha256:9c1d…",
+    "fingerprint":         "sha256:e0320dce244b9576a54a12f7507c7930ca858439668e91e8793cdcb313ef5c35",
     "fingerprint_version": "fp-jcs-strings-v1"
   })
 )
@@ -202,6 +202,25 @@ signature = sign(member_private_key, signing_payload)
 - The payload does **not** name the signing key — there is no `key_id`. The signature inherently commits to the keypair; *which* key signed is whatever public key verifies it, attributed to a member via the committee's member→key map (§6.8).
 - **What gets signed:** `sign`/`verify` operate over the raw 32-byte SHA-256 digest above — for `ed25519`, plain EdDSA over those 32 bytes (not Ed25519ph). Signer and verifier MUST agree on this exactly, or every signature silently fails.
 - `public_key` and `signature` are **base64** ([RFC 4648] §4 standard alphabet, padded).
+
+**Reference vector.** Reproducible end to end. The key below is a **published test key — never use it in production.** Signing is plain Ed25519 over the 32-byte SHA-256 digest (see "What gets signed," above).
+
+```text
+# Member signing key (Ed25519). The seed is published only so this vector is reproducible.
+private key seed (hex):  0102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f20
+public_key (base64):     ebVWLo/mVPlAeLES6KmLp5AfhTrmlb7X4OORC60ElmQ=
+
+# 1. JCS-canonicalize the decision payload (keys sorted, no whitespace):
+{"committee":"cmte_finance_approvals","fingerprint":"sha256:e0320dce244b9576a54a12f7507c7930ca858439668e91e8793cdcb313ef5c35","fingerprint_version":"fp-jcs-strings-v1","request":"areq_8f3a","signed_at":"2026-06-16T18:05:00Z","v":"sig-jcs-v1","vote":"approve"}
+
+# 2. SHA-256 of that canonical string = the exact 32 bytes that get signed (hex):
+8f5ca50a7ed139784441f8e9cf97c3d5d00745c0d8098096d9b00058ade28af2
+
+# 3. Ed25519 signature over those 32 bytes, base64 — this is the decision's `signature`:
+mU3iRTXUyfeeU3f9ErxucYFxZFA+mQhPNiYoRYVkKx+fWtfciSxDc1UEtVc8QbHAvwlnRZXKYOlaVDgsVWIPBA==
+```
+
+A verifier reconstructs steps 1–2 from the decision's own fields and checks the signature against `public_key`. The `fingerprint` here is the §4.1 flat-params vector, so the two examples chain into one verifiable approval.
 
 ### 4.3 Webhook signature — `v1`
 
@@ -216,6 +235,24 @@ header         = "X-Warrant-Signature: t=<unix_seconds>,v1=<hex>"
 ```
 
 The client recomputes `v1` over the **raw** body (not a re-serialized copy), constant-time-compares, then rejects if `t` is outside a small tolerance (e.g. ±5 min) to bound replay. This authenticates *delivery* only; it is **not** a substitute for re-validating the proof (§6.7).
+
+**Reference vector.** The HMAC covers the **raw received bytes**, never a re-serialized copy.
+
+```text
+# Inputs:
+endpoint_secret:  whsec_0123456789abcdef0123456789abcdef
+t (unix seconds): 1781633191
+raw request body: {"event":"approval_request.approved","data":{"id":"areq_8f3a","status":"approved"}}
+
+# 1. signed_payload = t + "." + raw_body:
+1781633191.{"event":"approval_request.approved","data":{"id":"areq_8f3a","status":"approved"}}
+
+# 2. v1 = lowercase_hex(HMAC-SHA256(endpoint_secret, signed_payload)):
+4eaa8f19eee8a035b64eb9521ff6650249e38bd9a1b24e96273b8edb16881ae7
+
+# Delivered header:
+X-Warrant-Signature: t=1781633191,v1=4eaa8f19eee8a035b64eb9521ff6650249e38bd9a1b24e96273b8edb16881ae7
+```
 
 ### 4.4 Shared JCS rules (#1, #2)
 
@@ -278,7 +315,7 @@ Authorization: Bearer <api_key>
   "id": "areq_8f3a", 
   "status": "pending",
   "committee": "cmte_finance_approvals",
-  "action_fingerprint": "sha256:9c1d…",
+  "action_fingerprint": "sha256:e0320dce244b9576a54a12f7507c7930ca858439668e91e8793cdcb313ef5c35",
   "fingerprint_version": "fp-jcs-strings-v1",
   "threshold": { 
     "type": "m_of_n",
@@ -400,7 +437,7 @@ A **proof** is issued for any **vote-decided** outcome — `approved` **or** `de
   "proof": {
     "committee": "cmte_finance_approvals",
     "request": "areq_8f3a",
-    "action_fingerprint": "sha256:9c1d…",
+    "action_fingerprint": "sha256:e0320dce244b9576a54a12f7507c7930ca858439668e91e8793cdcb313ef5c35",
     "fingerprint_version": "fp-jcs-strings-v1",
     "outcome": "approved",
     "threshold": {
@@ -569,7 +606,7 @@ See §3.5. A claim of conformance MUST state which trust mode (V1 custody / V2 s
 
 ### 10.4 Conformance test vectors
 
-Each canonical byte-string (§4) **MUST** ship machine-readable vectors (input → canonical string → output) so any implementation proves byte-identical agreement before production. Reference vectors for `fp-jcs-strings-v1` are provided (Appendix B); a conformant `sig-jcs-v1` or webhook `v1` implementation **MUST** ship equivalent vectors before it is trusted in production.
+Reference vectors for all three canonical byte-strings are provided inline in §4 — `fp-jcs-strings-v1` (§4.1), `sig-jcs-v1` (§4.2), and the webhook `v1` (§4.3) — each fully reproducible from the values shown. A conformant implementation **MUST** reproduce them byte for byte, and **SHOULD** include them in its own test suite.
 
 ---
 
@@ -763,9 +800,7 @@ Condensed play-tests that exercise the protocol (committee `cmte_finance_approva
 
 ## Appendix B — Conformance Test Vectors
 
-The `fp-jcs-strings-v1` reference vectors are the worked examples in §4.1 — each gives the exact `canonical` JCS string and its `fingerprint` (`"sha256:" + sha256hex(canonical)`), covering flat strings, nested objects with booleans/null, and string escaping (control char + astral UTF-8). A conformant implementation MUST reproduce them byte for byte, and MAY republish them as machine-readable JSON for its own test suite.
-
-Conformant `sig-jcs-v1` and webhook `v1` implementations **MUST** ship equivalent vector sets.
+Reference vectors for all three canonical byte-strings live inline in §4: `fp-jcs-strings-v1` (§4.1) covers flat strings, nested objects with booleans/null, and string escaping (control char + astral UTF-8); `sig-jcs-v1` (§4.2) gives a full Ed25519 decision — canonical payload, signed digest, and signature — from a published test key; the webhook `v1` (§4.3) gives a complete HMAC example. Each is reproducible from the values shown. A conformant implementation MUST reproduce them byte for byte, and MAY republish them as machine-readable JSON for its own test suite.
 
 ---
 
