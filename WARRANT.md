@@ -118,23 +118,66 @@ fingerprint = "sha256:" + lowercase_hex(
 - `params` leaf values MUST be **strings, booleans, or null** — **never raw numbers**. (JCS's one cross-language weak spot is float serialization; forbidding numbers removes the entire risk class.) A platform **MUST reject** a create request whose `params` contain a raw number. Money is `"10000"` or `{ "value": "10000", "currency": "USD" }`.
 - `message`/`context` are **never** part of the fingerprint.
 
-Worked input → canonical → fingerprint:
+**Reference vectors** (normative — a conformant implementation MUST reproduce each `canonical` string and `fingerprint` below, byte for byte):
+
+*Flat string params:*
 
 ```json
-{ 
-  "version": "fp-jcs-strings-v1", 
+{
+  "version": "fp-jcs-strings-v1",
   "committee": "cmte_finance_approvals",
-  "type": "transfer_funds", 
-  "params": { 
-    "amount": "10000", 
-    "to": "acct_123" 
-  } 
+  "type": "transfer_funds",
+  "params": {
+    "amount": "10000",
+    "to": "acct_123"
+  }
 }
 ```
 
 ```text
 {"committee":"cmte_finance_approvals","params":{"amount":"10000","to":"acct_123"},"type":"transfer_funds","version":"fp-jcs-strings-v1"}
-→ sha256:<lowercase hex>
+→ sha256:e0320dce244b9576a54a12f7507c7930ca858439668e91e8793cdcb313ef5c35
+```
+
+*Nested object, boolean, and null — keys sorted at every level:*
+
+```json
+{
+  "version": "fp-jcs-strings-v1",
+  "committee": "cmte_finance_approvals",
+  "type": "transfer_funds",
+  "params": {
+    "amount": {
+      "value": "10000",
+      "currency": "USD"
+    },
+    "urgent": true,
+    "memo": null
+  }
+}
+```
+
+```text
+{"committee":"cmte_finance_approvals","params":{"amount":{"currency":"USD","value":"10000"},"memo":null,"urgent":true},"type":"transfer_funds","version":"fp-jcs-strings-v1"}
+→ sha256:21db0f9a78ca91df90704add4f4d862e4eb4a929cd2f47482af135ca01d46e67
+```
+
+*String escaping: quote, backslash, control char; an astral emoji stays literal UTF-8:*
+
+```json
+{
+  "version": "fp-jcs-strings-v1",
+  "committee": "cmte_finance_approvals",
+  "type": "note",
+  "params": {
+    "note": "a\"b\\c\nd\te\u0001f😀"
+  }
+}
+```
+
+```text
+{"committee":"cmte_finance_approvals","params":{"note":"a\"b\\c\nd\te\u0001f😀"},"type":"note","version":"fp-jcs-strings-v1"}
+→ sha256:5c2518c6187c0184a02dda0eccc949a52e4cfbd5917a8c6ad36a833ee62e7679
 ```
 
 ### 4.2 Decision signing payload — `sig-jcs-v1`
@@ -720,7 +763,7 @@ Condensed play-tests that exercise the protocol (committee `cmte_finance_approva
 
 ## Appendix B — Conformance Test Vectors
 
-`fp-jcs-strings-v1` reference vectors ship as machine-readable JSON (`{ description, input: { committee, type, params }, canonical, fingerprint }`), where `canonical` is the byte-exact JCS string and `fingerprint` is `"sha256:" + sha256hex(canonical)`. A reference set (flat strings; nested objects with booleans/null; string escaping incl. control chars and astral UTF-8; array order preservation) is maintained alongside the reference implementation.
+The `fp-jcs-strings-v1` reference vectors are the worked examples in §4.1 — each gives the exact `canonical` JCS string and its `fingerprint` (`"sha256:" + sha256hex(canonical)`), covering flat strings, nested objects with booleans/null, and string escaping (control char + astral UTF-8). A conformant implementation MUST reproduce them byte for byte, and MAY republish them as machine-readable JSON for its own test suite.
 
 Conformant `sig-jcs-v1` and webhook `v1` implementations **MUST** ship equivalent vector sets.
 
