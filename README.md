@@ -1,5 +1,7 @@
 # The Warrant Protocol
 
+*A protocol specification (`warrant/1.0`) — not a package you install. The code below shows how a **conformant** SDK is used; building one, in any language, is up to you.*
+
 **Some actions are too important to leave to a prompt.**
 
 You can tell an agent "only wire money if the user really confirms." But a prompt is an inconvenience, not a security boundary — a jailbreak, an injected instruction, or a bad day for the model, and the wire goes out anyway.
