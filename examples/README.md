@@ -62,8 +62,8 @@ The agent's ordinary retry behavior *is* the resume — no request IDs, no state
 | [`rust_tool.rs`](rust_tool.rs) | Rust | Closure-based guard; client passed in explicitly |
 | [`csharp_tool.cs`](csharp_tool.cs) | C# | Semantic-Kernel-style attributes that *are* the tool schema |
 | [`cli_tool.sh`](cli_tool.sh) | Shell / CLI | Wrap any command as a guarded tool; "resume" is just re-running it |
-| [`raw_api_python.py`](raw_api_python.py) | Python (no SDK) | The same tool against the raw REST API — fingerprinting and full proof re-validation by hand |
+| [`raw_api_ruby.rb`](raw_api_ruby.rb) | Ruby (no SDK) | The same tool against the raw REST API — fingerprinting and full proof re-validation by hand, stdlib only |
 
 Each restates the two points above in its own comments: **a tool is a function the agent calls with params**, and **the guard lives inside it so it always runs.**
 
-[`raw_api_python.py`](raw_api_python.py) goes one further and uses **no SDK at all** — it computes the fingerprint and performs the complete [§6.7](../WARRANT.md) proof re-validation (signatures, fingerprint match, distinct-member threshold, freshness) by hand. It's long on purpose: it shows that an SDK is only a convenience over a compliant API, not a requirement.
+[`raw_api_ruby.rb`](raw_api_ruby.rb) goes one further and uses **no SDK at all** — with only the Ruby standard library it computes the fingerprint and performs the complete [§6.7](../WARRANT.md) proof re-validation (signatures, fingerprint match, distinct-member threshold, freshness) by hand. It's long on purpose: it shows that an SDK is only a convenience over a compliant API, not a requirement.
